@@ -21,6 +21,7 @@ package ca.appbox.monitoring.jmx.jmxbox.commons;
 public class CommandLineOptions {
 
 	public final static String HELP = "help";
+	public final static String PROCESS_ID = "pid";
 	public final static String HOST = "host";
 	public final static String PORT = "port";
 	public final static String USER = "user";
@@ -29,6 +30,7 @@ public class CommandLineOptions {
 	public final static String REPETITIONS = "repetitions";
 	public final static String OUTPUT_FILE = "outputFile";
 	public final static String RECORD_DELIMITER = "recordDelimiter";
+	public final static String GET_MBEAN = "getMBean";
 	public final static String INVOKE = "invokeOperation";
 	public final static String READ_ATTRIBUTE = "readAttribute";
 	public final static String UTC_TIMESTAMPS = "utcTimestamps";

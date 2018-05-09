@@ -32,10 +32,12 @@ class CommandLineOptionsComparator implements Comparator<Option> {
 	
 	static {
 		displayOrder.put(CommandLineOptions.HELP, Integer.valueOf(0));
+		displayOrder.put(CommandLineOptions.PROCESS_ID, Integer.valueOf(5));
 		displayOrder.put(CommandLineOptions.HOST, Integer.valueOf(10));
 		displayOrder.put(CommandLineOptions.PORT, Integer.valueOf(20));
 		displayOrder.put(CommandLineOptions.USER, Integer.valueOf(30));
 		displayOrder.put(CommandLineOptions.PASSWORD, Integer.valueOf(40));
+		displayOrder.put(CommandLineOptions.GET_MBEAN, Integer.valueOf(45));
 		displayOrder.put(CommandLineOptions.INVOKE, Integer.valueOf(50));
 		displayOrder.put(CommandLineOptions.READ_ATTRIBUTE, Integer.valueOf(60));
 		displayOrder.put(CommandLineOptions.OUTPUT_FILE, Integer.valueOf(70));

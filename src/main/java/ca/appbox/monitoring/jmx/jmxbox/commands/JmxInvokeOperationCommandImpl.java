@@ -16,7 +16,11 @@ package ca.appbox.monitoring.jmx.jmxbox.commands;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
+import javax.management.MBeanInfo;
+import javax.management.MBeanOperationInfo;
+import javax.management.MBeanParameterInfo;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 
@@ -40,19 +44,37 @@ public class JmxInvokeOperationCommandImpl extends AbstractJmxCommand {
 
 	@Override
 	public boolean hasOutput() {
-		return false;
+		return true;
 	}
 
 	@Override
 	public JmxCommandResult actualInvoke(ObjectName mBean, MBeanServerConnection mBeanServerConnection) throws JmxException {
-		
+	    Object res ;
 		try {
-			mBeanServerConnection.invoke(mBean, operation, parameters.toArray(), null);
+		    MBeanInfo mBeanInfo = mBeanServerConnection.getMBeanInfo(mBean);
+            MBeanOperationInfo[] operas = mBeanInfo.getOperations();
+            MBeanOperationInfo opera = null;
+            String[] signature = null;
+            for(MBeanOperationInfo mboi : operas){
+                if(mboi.getName().equals(operation) && parameters.size() == mboi.getSignature().length){
+                    opera = mboi;
+                    MBeanParameterInfo[] params = mboi.getSignature();
+                    signature = new String[params.length];
+                    for(int i = 0; i < params.length; i++){
+                        signature[i] = params[i].getType();
+                    }
+                }
+            }
+            if(opera == null){
+                throw new JmxException("Problem invoking operation (" + operation +") on mBean : " + mBean 
+                        + ", because no this operation or the paramters do not match signature");
+            }
+            res = mBeanServerConnection.invoke(mBean, operation, parameters.toArray(), signature);
 		} catch (Exception e) {
 			throw new JmxException("Problem invoking operation (" + operation +") on mBean : " + mBean, e);
 		} 
 		
-		return new JmxCommandResultImpl(null, this);
+		return new JmxCommandResultImpl(Objects.toString(res), this);
 	}
 	
 	public void addParameter(final String parameter) {

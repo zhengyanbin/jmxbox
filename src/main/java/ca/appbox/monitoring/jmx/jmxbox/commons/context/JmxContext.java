@@ -31,6 +31,7 @@ public class JmxContext {
 	private static final Integer DEFAULT_INTERVAL = 1000;
 	private static final Integer DEFAULT_REPETITIONS = 1;
 	
+	private final String pid;
 	private final String host;
 	private final Integer port;
 	private final String user;
@@ -42,11 +43,12 @@ public class JmxContext {
 	private final Boolean utcTimestamps;
 	private final List<JmxCommand> commands;
 
-	public JmxContext(String host, Integer port, String user,
+	public JmxContext(String pid, String host, Integer port, String user,
 			String password, Integer intervalInSeconds, File outputFile,
 			String recordDelimiter, Integer repetitions, Boolean utcTimestamps) {
 		super();
 		
+		this.pid = pid;
 		this.host = host;
 		this.port = port;
 		this.user = user;
@@ -82,7 +84,11 @@ public class JmxContext {
 		
 	}
 
-	public String getHost() {
+	public String getPid() {
+        return pid;
+    }
+
+    public String getHost() {
 		return host;
 	}
 

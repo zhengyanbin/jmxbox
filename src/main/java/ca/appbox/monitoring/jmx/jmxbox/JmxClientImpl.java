@@ -14,6 +14,7 @@
  */
 package ca.appbox.monitoring.jmx.jmxbox;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
@@ -25,6 +26,14 @@ import javax.management.MBeanServerConnection;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.sun.tools.attach.AgentInitializationException;
+import com.sun.tools.attach.AgentLoadException;
+import com.sun.tools.attach.AttachNotSupportedException;
+import com.sun.tools.attach.VirtualMachine;
 
 import ca.appbox.monitoring.jmx.jmxbox.commands.JmxCommand;
 import ca.appbox.monitoring.jmx.jmxbox.commands.JmxCommandResult;
@@ -39,6 +48,8 @@ import ca.appbox.monitoring.jmx.jmxbox.output.OutputStrategy;
  * 
  */
 public class JmxClientImpl implements JmxClient {
+    
+    private static final Logger logger = LoggerFactory.getLogger(JmxClientImpl.class);
 
 	private static final JmxClientImpl instance = new JmxClientImpl();
 
@@ -92,11 +103,57 @@ public class JmxClientImpl implements JmxClient {
 			env.put(JMXConnector.CREDENTIALS, credentials);
 		}
 
-		target = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://"
-				+ context.getHost() + ":" + context.getPort() + "/jmxrmi");
+		if(context.getPid() != null){
+		    target = getLocalJmx(context.getPid());
+		}else{
+		    target = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://"
+		            + context.getHost() + ":" + context.getPort() + "/jmxrmi");
+		}
+		
 		JMXConnector connector = JMXConnectorFactory.connect(target,env);
 		MBeanServerConnection mBeanServerConnection = connector
 				.getMBeanServerConnection();
 		return mBeanServerConnection;
+	}
+	
+    private JMXServiceURL getLocalJmx(String pid) {
+        VirtualMachine vm;
+        JMXServiceURL url = null;
+        try {
+            vm = VirtualMachine.attach(pid);
+
+            String connectorAddress = vm.getAgentProperties().getProperty("com.sun.management.jmxremote.localConnectorAddress");
+            if (connectorAddress == null) {
+                logger.info("connectorAddress  is  null, need load management agent");
+                String javaHome = vm.getSystemProperties().getProperty("java.home");
+                String agentPath = javaHome + File.separator + "jre" + File.separator + "lib" + File.separator + "management-agent.jar";
+                File file = new File(agentPath);
+                if (!file.exists()) {
+                    agentPath = javaHome + File.separator + "lib" + File.separator + "management-agent.jar";
+                    file = new File(agentPath);
+                    if (!file.exists()) {
+                        throw new IOException("Management agent not found");
+                    }
+                }
+
+                agentPath = file.getCanonicalPath();
+                vm.loadAgent(agentPath, "com.sun.management.jmxremote");
+                // jdk1.8之后可以使用该方法替代上面加载manager的方式
+                // vm.startLocalManagementAgent();
+                connectorAddress = vm.getAgentProperties().getProperty("com.sun.management.jmxremote.localConnectorAddress");
+            }
+            logger.info("local connector address :{}", connectorAddress);
+            // 以下代码用于连接指定的jmx，本地或者远程
+            url = new JMXServiceURL(connectorAddress);
+        } catch (AttachNotSupportedException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (AgentLoadException e) {
+            e.printStackTrace();
+        } catch (AgentInitializationException e) {
+            e.printStackTrace();
+        }
+        return url;
 	}
 }

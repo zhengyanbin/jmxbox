@@ -28,6 +28,7 @@ import org.apache.commons.cli.PosixParser;
 
 import ca.appbox.monitoring.jmx.jmxbox.JmxClientApp;
 import ca.appbox.monitoring.jmx.jmxbox.commands.JmxCommand;
+import ca.appbox.monitoring.jmx.jmxbox.commands.JmxGetMBeanCommandImpl;
 import ca.appbox.monitoring.jmx.jmxbox.commands.JmxInvokeOperationCommandImpl;
 import ca.appbox.monitoring.jmx.jmxbox.commands.JmxReadAttributeCommandImpl;
 import ca.appbox.monitoring.jmx.jmxbox.commons.CommandLineOptions;
@@ -80,16 +81,17 @@ public class JmxContextParserImpl implements JmxContextParser {
 	private JmxContext buildJmxContext(CommandLine commandLine)
 			throws JmxException {
 
+	    final String pid = commandLine.getOptionValue(CommandLineOptions.PROCESS_ID);
+	    
 		final String host = commandLine.getOptionValue(CommandLineOptions.HOST);
-		final Integer port = Integer.valueOf(commandLine
-				.getOptionValue(CommandLineOptions.PORT));
+		final Integer port = commandLine.getOptionValue(CommandLineOptions.PORT) == null 
+		        ? null : Integer.valueOf(commandLine.getOptionValue(CommandLineOptions.PORT));
 		final String user = commandLine.getOptionValue(CommandLineOptions.USER);
 		final String password = commandLine
 				.getOptionValue(CommandLineOptions.PASSWORD);
 		final Integer internal = commandLine
 				.getOptionValue(CommandLineOptions.INTERVAL_IN_SECONDS) == null ? null
-				: Integer
-						.valueOf(commandLine
+				: Integer.valueOf(commandLine
 								.getOptionValue(CommandLineOptions.INTERVAL_IN_SECONDS));
 
 		final File outputFile = commandLine
@@ -110,7 +112,7 @@ public class JmxContextParserImpl implements JmxContextParser {
 		final boolean utcTimestamps = commandLine
 				.hasOption(CommandLineOptions.UTC_TIMESTAMPS);
 
-		JmxContext context = new JmxContext(host, port, user, password,
+		JmxContext context = new JmxContext(pid, host, port, user, password,
 				internal, outputFile, delimiter, repetitions, utcTimestamps);
 
 		addCommands(context, commandLine);
@@ -124,9 +126,25 @@ public class JmxContextParserImpl implements JmxContextParser {
 
 		addReadAttributeCommands(context, commandLine);
 		addInvokeOperationCommands(context, commandLine);
+		addGetMBeanCommands(context, commandLine);
 	}
 
-	private void addInvokeOperationCommands(JmxContext context,
+	private void addGetMBeanCommands(JmxContext context, CommandLine commandLine) throws JmxException {
+	    
+	    String objectNameDomain = commandLine.getOptionValue(CommandLineOptions.GET_MBEAN);
+	    if(objectNameDomain == null){
+	        return;
+	    }
+        JmxCommand invokeCommand;
+        if("*".equals(objectNameDomain)){
+            invokeCommand = new JmxGetMBeanCommandImpl("");
+        }else{
+            invokeCommand = new JmxGetMBeanCommandImpl(objectNameDomain + ":*");
+        }
+        context.addCommand(invokeCommand);
+	}
+	
+    private void addInvokeOperationCommands(JmxContext context,
 			CommandLine commandLine) throws JmxException {
 
 		String[] invokeCommands = commandLine
@@ -197,10 +215,13 @@ public class JmxContextParserImpl implements JmxContextParser {
 
 	private boolean isValidCommandLine(CommandLine commandLine) {
 
-		boolean isValid = commandLine.hasOption(CommandLineOptions.HOST)
-				&& commandLine.hasOption(CommandLineOptions.PORT)
-				&& (commandLine.hasOption(CommandLineOptions.INVOKE) || commandLine
-						.hasOption(CommandLineOptions.READ_ATTRIBUTE));
+		boolean isValid = (commandLine.hasOption(CommandLineOptions.HOST)
+                && commandLine.hasOption(CommandLineOptions.PORT)) 
+                || commandLine.hasOption(CommandLineOptions.PROCESS_ID);
+		        
+		isValid = isValid && (commandLine.hasOption(CommandLineOptions.GET_MBEAN) 
+		        || commandLine.hasOption(CommandLineOptions.INVOKE) 
+		        || commandLine.hasOption(CommandLineOptions.READ_ATTRIBUTE));
 
 		return isValid;
 	}
@@ -223,6 +244,10 @@ public class JmxContextParserImpl implements JmxContextParser {
 		Option help = OptionBuilder.withDescription("prints this message")
 				.create(CommandLineOptions.HELP);
 
+		Option processId = OptionBuilder.withDescription("local connection need process id")
+		        .withArgName("pid").hasArg(true)
+		        .create(CommandLineOptions.PROCESS_ID);
+		
 		Option host = OptionBuilder.withDescription("jmx host")
 				.withArgName("host").hasArg(true)
 				.create(CommandLineOptions.HOST);
@@ -270,14 +295,22 @@ public class JmxContextParserImpl implements JmxContextParser {
 						"operation to invoke (mBeanName;operationName;param1;param2;paramN)")
 				.withArgName("mBean operation").hasArg(true)
 				.create(CommandLineOptions.INVOKE);
+		
+		Option getMBean = OptionBuilder
+		        .withDescription(
+		                "list all MBeans by domain (domain), \"*\" will list all")
+		                .withArgName("mBean domain").hasArg(true)
+		                .create(CommandLineOptions.GET_MBEAN);
 
 		Option utcTimestamps = OptionBuilder.withDescription(
 				"use UTC timestamps").create(CommandLineOptions.UTC_TIMESTAMPS);
 
 		options.addOption(help);
+		options.addOption(processId);
 		options.addOption(host);
 		options.addOption(port);
 		options.addOption(repetitions);
+		options.addOption(getMBean);
 		options.addOption(readAttribute);
 		options.addOption(operation);
 		options.addOption(user);
